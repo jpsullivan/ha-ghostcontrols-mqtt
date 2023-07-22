@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -83,22 +82,17 @@ func main() {
 	opts.SetUsername("mqtt_user")
 	opts.SetPassword("mqtt_password")
 	opts.SetDefaultPublishHandler(f)
+	opts.SetAutoReconnect(true)
 	opts.SetCleanSession(false)
 
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		fmt.Println(token.Error())
-		return
+		panic(token.Error())
 	}
 
 	fmt.Printf("Connected to %s\n", "homeassistant.local")
 
-	if token := client.Subscribe("go-mqtt/sample", 0, f); token.Wait() && token.Error() != nil {
-		fmt.Println(token.Error())
-		os.Exit(1)
-	}
-
-	token := client.Subscribe("sullyhausrf/gate/action", 0, func(c mqtt.Client, m mqtt.Message) {
+	subscribeCallback := func(c mqtt.Client, m mqtt.Message) {
 		msg := Message{}
 		err := json.Unmarshal(m.Payload(), &msg)
 		if err != nil {
@@ -125,15 +119,12 @@ func main() {
 				fmt.Println(cmdErr)
 			}
 		}
-	})
+	}
 
-	token.Wait()
-
-	if token.Error() != nil {
+	if token := client.Subscribe("sullyhausrf/gate/action", 0, subscribeCallback); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}
 
-	for {
-		time.Sleep(10 * time.Second)
-	}
+	// Wait forever or doing anything else
+	select {}
 }
