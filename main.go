@@ -45,7 +45,7 @@ func decodeAction(action string) (option, command int64, err error) {
 }
 
 func codeFromFlags(actionName string) (int64, error) {
-	option, command, err := decodeAction(*action)
+	option, command, err := decodeAction(actionName)
 	if err != nil {
 		return 0, err
 	}
