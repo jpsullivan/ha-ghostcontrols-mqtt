@@ -7,7 +7,9 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strconv"
+	"syscall"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -72,6 +74,9 @@ func toBits(code int64) (out string) {
 }
 
 func main() {
+	c := make(chan os.Signal, 1)
+	done := make(chan bool, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGABRT)
 	// hostname, _ := os.Hostname()
 
 	mqtt.DEBUG = log.New(os.Stdout, "", 0)
@@ -121,10 +126,10 @@ func main() {
 		}
 	}
 
+	// main listener for "gate/action" mqtt requests
 	if token := client.Subscribe("sullyhausrf/gate/action", 0, subscribeCallback); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}
 
-	// Wait forever or doing anything else
-	select {}
+	<-done
 }
