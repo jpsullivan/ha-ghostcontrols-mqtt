@@ -14,11 +14,6 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-var f mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
-	fmt.Printf("TOPIC: %s\n", msg.Topic())
-	fmt.Printf("MSG: %s\n", msg.Payload())
-}
-
 var (
 	action    = flag.String("action", "toggle", "One of (toggle, open, test, party, vacation)")
 	id        = flag.Int64("id", 123456, "Transmitter ID")
@@ -60,33 +55,30 @@ func codeFromFlags(actionName string) (int64, error) {
 	return code, nil
 }
 
-func toBits(code int64) (out string) {
+func toBits(code int64) string {
+	var buf [168]byte
 	v := code
-	for i := 0; i < 42; i++ {
-		if v%2 == 0 {
-			out = "1000" + out
-		} else {
-			out = "1110" + out
+	for i := 41; i >= 0; i-- {
+		pat := "1000"
+		if v&1 == 1 {
+			pat = "1110"
 		}
-		v /= 2
+		copy(buf[i*4:i*4+4], pat)
+		v >>= 1
 	}
-	return out
+	return string(buf[:])
 }
 
 func main() {
-	c := make(chan os.Signal, 1)
-	done := make(chan bool, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGABRT)
-	// hostname, _ := os.Hostname()
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGABRT)
 
-	mqtt.DEBUG = log.New(os.Stdout, "", 0)
-	mqtt.ERROR = log.New(os.Stdout, "", 0)
+	mqtt.ERROR = log.New(os.Stderr, "", 0)
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker("mqtt://homeassistant.local:1883")
 	opts.SetClientID("sullyhausrf")
 	opts.SetUsername("mqtt_user")
 	opts.SetPassword("mqtt_password")
-	opts.SetDefaultPublishHandler(f)
 	opts.SetAutoReconnect(true)
 	opts.SetCleanSession(false)
 
@@ -110,6 +102,7 @@ func main() {
 			code, actionErr := codeFromFlags(msg.Action)
 			if actionErr != nil {
 				fmt.Printf("ERROR: Invalid action provided `%s`\n", msg.Action)
+				return
 			}
 
 			bits := toBits(code)
@@ -131,5 +124,6 @@ func main() {
 		panic(token.Error())
 	}
 
-	<-done
+	<-sig
+	client.Disconnect(250)
 }
