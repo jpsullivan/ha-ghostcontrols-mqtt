@@ -1,0 +1,14 @@
+[Unit]
+Description=GhostControls gate RF transmitter (MQTT bridge)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# runs as root so sendook can drive the 433 MHz GPIO directly
+ExecStart=/usr/local/bin/ha-ghostcontrols-mqtt
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

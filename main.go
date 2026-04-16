@@ -111,7 +111,7 @@ func main() {
 			fmt.Printf("Binary: %b\n", code)
 			fmt.Printf("After pwm: %q\n", bits)
 
-			cmd := exec.Command("sudo", "sendook", "-1", "250", "-0", "250", "-r", strconv.FormatInt(*count, 10), "-p", "40000", bits)
+			cmd := exec.Command("sendook", "-1", "250", "-0", "250", "-r", strconv.FormatInt(*count, 10), "-p", "40000", bits)
 			cmdErr := cmd.Run()
 			if cmdErr != nil {
 				fmt.Println(cmdErr)
